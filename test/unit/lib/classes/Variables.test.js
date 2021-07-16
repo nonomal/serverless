@@ -39,7 +39,13 @@ describe('Variables', () => {
 
   beforeEach(() => {
     ({ restoreEnv } = overrideEnv());
-    serverless = new Serverless();
+    serverless = new Serverless({
+      commands: ['print'],
+      options: {},
+      serviceDir: process.cwd(),
+      configuration: {},
+      configurationFilename: 'serverless.yml',
+    });
   });
 
   const afterCallback = () => restoreEnv();
@@ -508,7 +514,7 @@ describe('Variables', () => {
         service = makeDefault();
         // eslint-disable-next-line no-template-curly-in-string
         service.provider.variableSyntax = '\\${([ ~:a-zA-Z0-9._@\'",\\-\\/\\(\\)*?]+?)}'; // default
-        serverless.variables.service = service;
+        serverless.service = serverless.variables.service = service;
         serverless.variables.loadVariableSyntax();
         delete service.provider.variableSyntax;
       });
@@ -603,16 +609,13 @@ describe('Variables', () => {
           })
         ).to.be.fulfilled;
       });
-      it('should do nothing useful on * when not wrapped in quotes', () => {
+      it("should treat '*' literally when not wrapped in quotes", async () => {
         service.custom = {
-          val0: '${self:custom.*}',
+          val0: "${self:custom.*, 'fallback'}",
         };
-        const expected = { val0: undefined };
-        return expect(
-          serverless.variables.populateObject(service.custom).then((result) => {
-            expect(result).to.eql(expected);
-          })
-        ).to.be.fulfilled;
+        const expected = { val0: 'fallback' };
+        const result = await serverless.variables.populateObject(service.custom);
+        expect(result).to.eql(expected);
       });
       it('should properly populate overwrites where the middle value is valid', () => {
         service.custom = {
@@ -1210,19 +1213,16 @@ module.exports = {
         .should.eventually.eql('my stage is prod');
     });
 
-    it('should not allow partially double-quoted string', () => {
+    it('should not allow partially double-quoted string', async () => {
       const property = '${opt:stage, prefix"prod"suffix}';
       serverless.variables.options = {};
       const handleUnresolvedSpy = sinon.spy(serverless.variables, 'handleUnresolved');
-      return serverless.variables
-        .populateProperty(property)
-        .should.become(undefined)
-        .then(() => {
-          expect(handleUnresolvedSpy.callCount).to.equal(1);
-        })
-        .finally(() => {
-          handleUnresolvedSpy.restore();
-        });
+      try {
+        expect(await serverless.variables.populateProperty(property)).to.equal(undefined);
+        expect(handleUnresolvedSpy.callCount).to.equal(1);
+      } finally {
+        handleUnresolvedSpy.restore();
+      }
     });
 
     it('should allow a boolean with value true if overwrite syntax provided', () => {
@@ -2865,8 +2865,8 @@ describe('test/unit/lib/classes/Variables.test.js', () => {
     });
 
     describe('when unresolvedVariablesNotificationMode is set to "warn"', () => {
-      it('prints warnings to the console but no deprecation message', async () => {
-        const { serverless, stdoutData } = await runServerless({
+      it('should warn', async () => {
+        const { stdoutData } = await runServerless({
           fixture: 'variables-legacy',
           command: 'print',
           configExt: {
@@ -2880,11 +2880,6 @@ describe('test/unit/lib/classes/Variables.test.js', () => {
           },
           shouldUseLegacyVariablesResolver: true,
         });
-
-        expect(Array.from(serverless.triggeredDeprecations)).not.to.contain(
-          'VARIABLES_ERROR_ON_UNRESOLVED'
-        );
-
         expect(stdoutData).to.include('Serverless Warning');
         expect(stdoutData).to.include('A valid environment variable to satisfy the declaration');
         expect(stdoutData).to.include('A valid option to satisfy the declaration');
@@ -2894,8 +2889,8 @@ describe('test/unit/lib/classes/Variables.test.js', () => {
     });
 
     describe('when unresolvedVariablesNotificationMode is not set', () => {
-      it('should warn and print a deprecation message', async () => {
-        const { serverless } = await runServerless({
+      it('should warn', async () => {
+        const { stdoutData } = await runServerless({
           fixture: 'variables-legacy',
           command: 'print',
           configExt: {
@@ -2909,9 +2904,11 @@ describe('test/unit/lib/classes/Variables.test.js', () => {
           shouldUseLegacyVariablesResolver: true,
         });
 
-        expect(Array.from(serverless.triggeredDeprecations)).to.contain(
-          'VARIABLES_ERROR_ON_UNRESOLVED'
-        );
+        expect(stdoutData).to.include('Serverless Warning');
+        expect(stdoutData).to.include('A valid environment variable to satisfy the declaration');
+        expect(stdoutData).to.include('A valid option to satisfy the declaration');
+        expect(stdoutData).to.include('A valid service attribute to satisfy the declaration');
+        expect(stdoutData).to.include('A valid file to satisfy the declaration');
       });
     });
   });

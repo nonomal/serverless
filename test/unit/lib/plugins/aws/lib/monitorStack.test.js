@@ -407,7 +407,7 @@ describe('monitorStack', () => {
             EventId: '1e2f3g4h',
             StackName: 'new-service-dev',
             LogicalResourceId: 'mochaS3',
-            ResourceType: 'S3::Bucket',
+            ResourceType: 'AWS::S3::Bucket',
             Timestamp: new Date(),
             ResourceStatus: 'CREATE_FAILED',
             ResourceStatusReason: 'Bucket already exists',
@@ -921,7 +921,6 @@ describe('monitorStack', () => {
             ResourceType: 'AWS::CloudFormation::Stack',
             Timestamp: new Date(),
             ResourceStatus: 'UPDATE_ROLLBACK_IN_PROGRESS',
-            ResourceStatusReason: 'Export is in use',
           },
         ],
       };
@@ -943,7 +942,7 @@ describe('monitorStack', () => {
 
       return awsPlugin.monitorStack('update', cfDataMock, { frequency: 10 }).catch((e) => {
         let errorMessage = 'An error occurred: ';
-        errorMessage += 'mocha - Export is in use.';
+        errorMessage += 'mocha - UPDATE_ROLLBACK_IN_PROGRESS.';
         expect(e.name).to.be.equal('ServerlessError');
         expect(e.message).to.be.equal(errorMessage);
         // callCount is 2 because Serverless will immediately exits and shows the error

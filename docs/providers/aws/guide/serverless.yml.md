@@ -21,12 +21,15 @@ Here is a list of all available properties in `serverless.yml` when the provider
 
 service: myService
 
+projectDir: ./ # Boundary of a project in which service is configured. Influences file resolution
+
 frameworkVersion: '2'
 configValidationMode: warn # Modes for config validation. `error` throws an exception, `warn` logs error to console, `off` disables validation at all. The default is warn.
 enableLocalInstallationFallback: false # If set to 'true', guarantees that it's a locally (for service, in its node_modules) installed framework which processes the command
 useDotenv: false # If set to 'true', environment variables will be automatically loaded from .env files
 variablesResolutionMode: null # To crash on variable resolution errors (as coming from new resolver), set this value to "20210326"
 unresolvedVariablesNotificationMode: warn # If set to 'error', references to variables that cannot be resolved will result in an error being thrown (applies to legacy resolver)
+deprecationNotificationMode: warn:summary # 'warn' reports deprecations on the go, 'error' will result with an exception being thrown on first approached deprecation
 
 disabledDeprecations: # Disable deprecation logs by their codes. Default is empty.
   - DEP_CODE_1 # Deprecation code to disable
@@ -60,8 +63,10 @@ provider:
       key1: value1
       key2: value2
   deploymentPrefix: serverless # The S3 prefix under which deployed artifacts should be stored. Default is serverless
+  disableDefaultOutputExportNames: false # optional, if set to 'true', disables default behavior of generating export names for CloudFormation outputs
   lambdaHashingVersion: 20201221 # optional, version of hashing algorithm that should be used by the framework
   ecr:
+    scanOnPush: true
     images: # Definitions of images that later can be referenced by key in `function.image`
       baseimage:
         uri: 000000000000.dkr.ecr.us-east-1.amazonaws.com/test-image@sha256:6bb600b4d6e1d7cf521097177d111111ea373edb91984a505333be8ac9455d38 # Image uri of existing Docker image in ECR
@@ -73,27 +78,28 @@ provider:
         cacheFrom:
           - my-image:latest
   cloudFront:
-    myCachePolicy1: # used as a reference in function.events[].cloudfront.cachePolicy.name
-      DefaultTTL: 60
-      MinTTL: 30
-      MaxTTL: 3600
-      Comment: my brand new cloudfront cache policy # optional
-      ParametersInCacheKeyAndForwardedToOrigin:
-        CookiesConfig:
-          CookieBehavior: whitelist # Possible values are 'none', 'whitelist', 'allExcept' and 'all'
-          Cookies:
-            - my-public-cookie
-        EnableAcceptEncodingBrotli: true # optional
-        EnableAcceptEncodingGzip: true
-        HeadersConfig:
-          HeadersBehavior: whitelist # Possible values are 'none' and 'whitelist'
-          Headers:
-            - authorization
-            - content-type
-        QueryStringsConfig:
-          QueryStringBehavior: allExcept # Possible values are 'none', 'whitelist', 'allExcept' and 'all'
-          QueryStrings:
-            - not-cached-query-string
+    cachePolicies:
+      myCachePolicy1: # used as a reference in function.events[].cloudfront.cachePolicy.name
+        DefaultTTL: 60
+        MinTTL: 30
+        MaxTTL: 3600
+        Comment: my brand new cloudfront cache policy # optional
+        ParametersInCacheKeyAndForwardedToOrigin:
+          CookiesConfig:
+            CookieBehavior: whitelist # Possible values are 'none', 'whitelist', 'allExcept' and 'all'
+            Cookies:
+              - my-public-cookie
+          EnableAcceptEncodingBrotli: true # optional
+          EnableAcceptEncodingGzip: true
+          HeadersConfig:
+            HeaderBehavior: whitelist # Possible values are 'none' and 'whitelist'
+            Headers:
+              - authorization
+              - content-type
+          QueryStringsConfig:
+            QueryStringBehavior: allExcept # Possible values are 'none', 'whitelist', 'allExcept' and 'all'
+            QueryStrings:
+              - not-cached-query-string
   versionFunctions: false # Optional function versioning
   environment: # Service wide environment variables
     serviceEnvVar: 123456789
@@ -115,6 +121,7 @@ provider:
       - ${env:MY_API_KEY} # you can hide it in a serverless variable
     minimumCompressionSize: 1024 # Compress response when larger than specified size in bytes (must be between 0 and 10485760)
     description: Some Description # Optional description for the API Gateway stage deployment
+    disableDefaultEndpoint: true # Optional disable the default 'execute-api' endpoint
     binaryMediaTypes: # Optional binary media types the API might return
       - '*/*'
     metrics:  false # Optional detailed Cloud Watch Metrics
@@ -208,6 +215,7 @@ provider:
     # .. OR configure logical role
     role:
       name: your-custom-name-role # Optional custom name for default IAM role
+      path: /your-custom-path/ # Optional custom path for default IAM role
       managedPolicies: # Optional IAM Managed Policies, which allows to include the policies into IAM Role
         - arn:aws:iam:*****:policy/some-managed-policy
       permissionsBoundary: arn:aws:iam::XXXXXX:policy/policy # ARN of an Permissions Boundary for the role.
@@ -278,6 +286,12 @@ provider:
       format: '{ "requestId":"$context.requestId", "ip": "$context.identity.sourceIp", "requestTime":"$context.requestTime", "httpMethod":"$context.httpMethod","routeKey":"$context.routeKey", "status":"$context.status","protocol":"$context.protocol", "responseLength":"$context.responseLength" }'
 
     frameworkLambda: true # Optional, whether to write CloudWatch logs for custom resource lambdas as added by the framework
+  s3: # If you need to configure the bucket itself, you'll need to add s3 resources to the provider configuration
+    bucketOne: # Eventual additional properties in camel case
+    # Supported properties are the same ones as supported by CF resource for S3 bucket: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-s3-bucket.html
+      name: my-custom-bucket-name
+      versioningConfiguration:
+        Status: Enabled
 
 package: # Optional deployment packaging configuration
   patterns: # Specify the directories and files which should be included in the deployment package
@@ -566,6 +580,7 @@ functions:
             OriginPath: /framework
             CustomOriginConfig:
               OriginProtocolPolicy: match-viewer
+      - s3: bucketOne
 
 layers:
   hello: # A Lambda layer

@@ -27,6 +27,7 @@ describe('test/unit/lib/configuration/variables/sources/instance-dependent/get-s
           existingListRaw: '${ssm(raw):existingList}',
           secretManager: '${ssm:/aws/reference/secretsmanager/existing}',
           existingEncrypted: '${ssm:/secret/existing}',
+          existingEncryptedDirect: '${ssm:/secret/direct}',
           existingEncryptedRaw: '${ssm(raw):/aws/reference/secretsmanager/existing}',
           notExisting: '${ssm:notExisting, null}',
           missingAddress: '${ssm:}',
@@ -49,6 +50,9 @@ describe('test/unit/lib/configuration/variables/sources/instance-dependent/get-s
             if (Name === '/secret/existing' || Name === '/aws/reference/secretsmanager/existing') {
               return { Parameter: { Type: 'SecureString', Value: '{"someSecret":"someValue"}' } };
             }
+            if (Name === '/secret/direct') {
+              return { Parameter: { Type: 'SecureString', Value: '12345678901234567890' } };
+            }
             if (Name === 'notExisting') {
               throw Object.assign(
                 new Error(
@@ -56,7 +60,7 @@ describe('test/unit/lib/configuration/variables/sources/instance-dependent/get-s
                     '(ParameterNotFound) when referencing Secrets Manager'
                 ),
                 {
-                  code: 'ParameterNotFound',
+                  code: 'AWS_S_S_M_GET_PARAMETER_PARAMETER_NOT_FOUND',
                 }
               );
             }
@@ -104,7 +108,11 @@ describe('test/unit/lib/configuration/variables/sources/instance-dependent/get-s
       if (variablesMeta.get('custom\0existingEncrypted')) {
         throw variablesMeta.get('custom\0existingEncrypted').error;
       }
+      if (variablesMeta.get('custom\0existingDirect')) {
+        throw variablesMeta.get('custom\0existingDirect').error;
+      }
       expect(configuration.custom.existingEncrypted).to.deep.equal({ someSecret: 'someValue' });
+      expect(configuration.custom.existingEncryptedDirect).to.equal('12345678901234567890');
     });
 
     it('should support "raw" output for decrypted data', () => {
@@ -147,6 +155,7 @@ describe('test/unit/lib/configuration/variables/sources/instance-dependent/get-s
         custom: {
           existing: '${ssm:existing}',
           existingWithSplit: '${ssm:existing~split}',
+          existingWithUnrecognized: '${ssm:existing~other}',
           existingList: '${ssm:existingList}',
           existingListWithSplit: '${ssm:existingList~split}',
           secretManager: '${ssm:/aws/reference/secretsmanager/existing}',
@@ -211,6 +220,13 @@ describe('test/unit/lib/configuration/variables/sources/instance-dependent/get-s
       expect(variablesMeta.get('custom\0existingList').error.code).to.equal(
         'VARIABLE_RESOLUTION_ERROR'
       );
+    });
+
+    it('should ignore unrecognized legacy instructions', () => {
+      if (variablesMeta.get('custom\0existingWithUnrecognized')) {
+        throw variablesMeta.get('custom\0existing').error;
+      }
+      expect(configuration.custom.existingWithUnrecognized).to.equal('value');
     });
 
     it('should resolve existing string list param', () => {

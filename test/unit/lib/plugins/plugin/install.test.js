@@ -19,7 +19,6 @@ chai.use(require('chai-as-promised'));
 describe('PluginInstall', () => {
   let pluginInstall;
   let serverless;
-  let consoleLogStub;
   let serverlessErrorStub;
   const plugins = [
     {
@@ -49,12 +48,10 @@ describe('PluginInstall', () => {
     serverless.cli = new CLI(serverless);
     const options = {};
     pluginInstall = new PluginInstall(serverless, options);
-    consoleLogStub = sinon.stub(serverless.cli, 'consoleLog').returns();
     serverlessErrorStub = sinon.stub(serverless.classes, 'Error').throws();
   });
 
   afterEach(() => {
-    serverless.cli.consoleLog.restore();
     serverless.classes.Error.restore();
   });
 
@@ -146,7 +143,6 @@ describe('PluginInstall', () => {
         expect(validateStub.calledOnce).to.equal(true);
         expect(getPluginsStub.calledOnce).to.equal(true);
         expect(pluginInstallStub.calledOnce).to.equal(true);
-        expect(consoleLogStub.called).to.equal(true);
         expect(serverlessErrorStub.calledOnce).to.equal(false);
         expect(addPluginToServerlessFileStub.calledOnce).to.equal(true);
         expect(installPeerDependenciesStub.calledOnce).to.equal(true);
@@ -167,7 +163,6 @@ describe('PluginInstall', () => {
         expect(validateStub.calledOnce).to.equal(true);
         expect(getPluginsStub.calledOnce).to.equal(true);
         expect(pluginInstallStub.calledOnce).to.equal(true);
-        expect(consoleLogStub.called).to.equal(true);
         expect(serverlessErrorStub.calledOnce).to.equal(false);
         expect(addPluginToServerlessFileStub.calledOnce).to.equal(true);
         expect(installPeerDependenciesStub.calledOnce).to.equal(true);
@@ -187,7 +182,6 @@ describe('PluginInstall', () => {
         expect(validateStub.calledOnce).to.equal(true);
         expect(getPluginsStub.calledOnce).to.equal(true);
         expect(pluginInstallStub.calledOnce).to.equal(true);
-        expect(consoleLogStub.called).to.equal(true);
         expect(serverlessErrorStub.calledOnce).to.equal(false);
         expect(addPluginToServerlessFileStub.calledOnce).to.equal(true);
         expect(installPeerDependenciesStub.calledOnce).to.equal(true);
@@ -283,7 +277,6 @@ describe('PluginInstall', () => {
 
       return expect(pluginInstall.pluginInstall()).to.be.fulfilled.then(() =>
         Promise.all([
-          expect(consoleLogStub.called).to.equal(true),
           expect(
             npmInstallStub.calledWithExactly('npm install --save-dev serverless-plugin-1@latest', {
               stdio: 'ignore',
@@ -296,7 +289,6 @@ describe('PluginInstall', () => {
 
     it('should generate a package.json file in the service directory if not present', () =>
       expect(pluginInstall.pluginInstall()).to.be.fulfilled.then(() => {
-        expect(consoleLogStub.called).to.equal(true);
         expect(
           npmInstallStub.calledWithExactly('npm install --save-dev serverless-plugin-1@latest', {
             stdio: 'ignore',
@@ -400,7 +392,7 @@ describe('PluginInstall', () => {
         });
     });
 
-    it('should not modify serverless .js file', () => {
+    it('should not modify serverless .js file', async () => {
       const serverlessJsFilePath = path.join(serviceDir, 'serverless.js');
       pluginInstall.serverless.configurationFilename = 'serverless.js';
       const serverlessJson = {
@@ -413,11 +405,10 @@ describe('PluginInstall', () => {
         `module.exports = ${JSON.stringify(serverlessJson)};`
       );
       pluginInstall.options.pluginName = 'serverless-plugin-1';
-      return expect(pluginInstall.addPluginToServerlessFile()).to.be.fulfilled.then(() => {
-        // use require to load serverless.js
-        // eslint-disable-next-line global-require
-        expect(require(serverlessJsFilePath).plugins).to.be.deep.equal([]);
-      });
+      await pluginInstall.addPluginToServerlessFile();
+      // use require to load serverless.js
+      // eslint-disable-next-line global-require
+      expect(require(serverlessJsFilePath).plugins).to.be.deep.equal([]);
     });
 
     it('should not modify serverless .ts file', () => {

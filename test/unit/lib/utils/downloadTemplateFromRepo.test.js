@@ -57,7 +57,7 @@ describe('downloadTemplateFromRepo', () => {
 
           return BbPromise.reject(Error('unknown server type'));
         },
-        'download': downloadStub,
+        '@serverless/utils/download': downloadStub,
         'child-process-ext/spawn': spawnStub,
       }
     );
@@ -73,13 +73,15 @@ describe('downloadTemplateFromRepo', () => {
 
   describe('downloadTemplateFromRepo', () => {
     it('should reject an error if the passed URL option is not a valid URL', () => {
-      return expect(downloadTemplateFromRepo('invalidUrl')).to.be.rejectedWith(Error);
+      return expect(
+        downloadTemplateFromRepo('invalidUrl')
+      ).to.be.eventually.rejected.and.have.property('code', 'INVALID_TEMPLATE_URL');
     });
 
     it('should reject an error if the passed URL is not a valid GitHub URL', () => {
       return expect(
         downloadTemplateFromRepo('http://no-git-hub-url.com/foo/bar')
-      ).to.be.rejectedWith(Error);
+      ).to.be.eventually.rejected.and.have.property('code', 'INVALID_TEMPLATE_PROVIDER');
     });
 
     it('should reject an error if a directory with the same service name is already present', () => {
@@ -88,7 +90,7 @@ describe('downloadTemplateFromRepo', () => {
 
       return expect(
         downloadTemplateFromRepo('https://github.com/johndoe/existing-service')
-      ).to.be.rejectedWith(Error);
+      ).to.be.eventually.rejected.and.have.property('code', 'TARGET_FOLDER_ALREADY_EXISTS');
     });
 
     it('should download the service based on a regular .git URL', () => {
@@ -223,23 +225,31 @@ describe('downloadTemplateFromRepo', () => {
       const serviceDirName = path.join(serviceDir, 'rest-api-with-dynamodb');
       fse.mkdirsSync(serviceDirName);
 
-      return expect(downloadTemplateFromRepo(null, url)).to.be.rejectedWith(Error);
+      return expect(
+        downloadTemplateFromRepo(null, url)
+      ).to.be.eventually.rejected.and.have.property('code', 'MISSING_TEMPLATE_URL');
     });
   });
 
   describe('parseRepoURL', () => {
     it('should reject an error if no URL is provided', () => {
-      return expect(parseRepoURL()).to.be.rejectedWith(Error);
+      return expect(parseRepoURL()).to.be.eventually.rejected.and.have.property(
+        'code',
+        'MISSING_TEMPLATE_URL'
+      );
     });
 
     it('should reject an error if URL is not valid', () => {
-      return expect(parseRepoURL('non_valid_url')).to.be.rejectedWith(Error);
+      return expect(parseRepoURL('non_valid_url')).to.be.eventually.rejected.and.have.property(
+        'code',
+        'INVALID_TEMPLATE_URL'
+      );
     });
 
     it('should throw an error if URL is not of valid provider', () => {
-      return expect(parseRepoURL('https://kostasbariotis.com/repo/owner')).to.be.rejectedWith(
-        Error
-      );
+      return expect(
+        parseRepoURL('https://kostasbariotis.com/repo/owner')
+      ).to.be.eventually.rejected.and.have.property('code', 'INVALID_TEMPLATE_PROVIDER');
     });
 
     it('should parse a valid GitHub URL', () => {
@@ -252,7 +262,8 @@ describe('downloadTemplateFromRepo', () => {
             downloadUrl: 'https://github.com/serverless/serverless/archive/master.zip',
             isSubdirectory: false,
             pathToDirectory: '',
-            auth: '',
+            username: '',
+            password: '',
           });
         }
       );
@@ -269,7 +280,8 @@ describe('downloadTemplateFromRepo', () => {
           downloadUrl: 'https://github.com/serverless/serverless/archive/master.zip',
           isSubdirectory: true,
           pathToDirectory: 'assets',
-          auth: '',
+          username: '',
+          password: '',
         });
       });
     });
@@ -285,7 +297,8 @@ describe('downloadTemplateFromRepo', () => {
           downloadUrl: 'https://github.mydomain.com/serverless/serverless/archive/master.zip',
           isSubdirectory: false,
           pathToDirectory: '',
-          auth: '',
+          username: '',
+          password: '',
         });
       });
     });
@@ -301,7 +314,8 @@ describe('downloadTemplateFromRepo', () => {
           downloadUrl: 'https://github.mydomain.com/serverless/serverless/archive/master.zip',
           isSubdirectory: true,
           pathToDirectory: 'assets',
-          auth: '',
+          username: '',
+          password: '',
         });
       });
     });
@@ -316,7 +330,8 @@ describe('downloadTemplateFromRepo', () => {
           branch: 'master',
           downloadUrl: 'https://github.com/serverless/serverless/archive/master.zip',
           isSubdirectory: false,
-          auth: 'username:password',
+          username: 'username',
+          password: 'password',
           pathToDirectory: '',
         });
       });
@@ -331,7 +346,8 @@ describe('downloadTemplateFromRepo', () => {
           downloadUrl: 'https://bitbucket.org/atlassian/localstack/get/master.zip',
           isSubdirectory: false,
           pathToDirectory: '',
-          auth: '',
+          username: '',
+          password: '',
         });
       });
     });
@@ -347,7 +363,8 @@ describe('downloadTemplateFromRepo', () => {
           downloadUrl: 'https://bitbucket.org/atlassian/localstack/get/mvn.zip',
           isSubdirectory: true,
           pathToDirectory: `localstack${path.sep}dashboard`,
-          auth: '',
+          username: '',
+          password: '',
         });
       });
     });
@@ -364,7 +381,8 @@ describe('downloadTemplateFromRepo', () => {
             'https://mybitbucket.server.ltd/rest/api/latest/projects/myproject/repos/myrepo/archive?at=refs%2Fheads%2Fdevelop&format=zip',
           isSubdirectory: false,
           pathToDirectory: '',
-          auth: 'user:pass',
+          username: 'user',
+          password: 'pass',
         });
       });
     });
@@ -379,7 +397,8 @@ describe('downloadTemplateFromRepo', () => {
             'https://gitlab.com/serverless/serverless/-/archive/master/serverless-master.zip',
           isSubdirectory: false,
           pathToDirectory: '',
-          auth: '',
+          username: '',
+          password: '',
         });
       });
     });
@@ -395,7 +414,8 @@ describe('downloadTemplateFromRepo', () => {
               'https://gitlab.com/serverless/serverless/-/archive/dev/serverless-dev.zip',
             isSubdirectory: true,
             pathToDirectory: 'subdir',
-            auth: '',
+            username: '',
+            password: '',
           });
         }
       );

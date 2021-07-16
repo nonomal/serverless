@@ -5,6 +5,7 @@ frameworkVersion: '*'
 
 provider:
   name: aws
+  runtime: nodejs12.x
   lambdaHashingVersion: 20201221
 
 functions:
@@ -15,4 +16,4 @@ functions:
   fnIndividually:
     handler: fnIndividually.handler
     package:
-      exclude: fn.js
+      patterns: '!fn.js'

@@ -17,6 +17,49 @@ disabledDeprecations:
   - '*' # To disable all deprecation messages
 ```
 
+## Notifications mode
+
+By default deprecations are logged, after command finalizes with a warning summary (`warn:summary` mode)
+
+Alternatively deprecation warnings can be displayed as they're discovered, on the go, that can be turned on with `warn` mode (this mode is automatically pursued on in case we fallback to locally installed Serverless Framework installation)
+
+If there's an intention to work with _deprecation_ free service, reporting mode can be switched to `error`, so approached deprecation is reported with a thrown error.
+
+Mode can be set via environment variable: `SLS_DEPRECATION_NOTIFICATION_MODE=error` or via top level service configuration setting:
+
+```yaml
+deprecationNotificationMode: error
+```
+
+Note:
+
+- In service configuration setting is ineffective for deprecations reported before service configuration is read.
+- `SLS_DEPRECATION_DISABLE` env var and `disabledDeprecations` configuration setting remain respected, and no errors will be thrown for mentioned deprecation coodes.
+
+<a name="DISABLE_DEFAULT_OUTPUT_EXPORT_NAMES"><div>&nbsp;</div></a>
+
+## Disable default Output Export names
+
+Deprecation code: `DISABLE_DEFAULT_OUTPUT_EXPORT_NAMES`
+
+Starting with `v3.0.0`, it will not be possible to disable default export names for outputs. To hide this deprecation message and ensure seamless upgrade, please remove this flag.
+
+<a name="CLI_DEPLOY_FUNCTION_OPTION"><div>&nbsp;</div></a>
+
+## CLI `--function`/`-f` option for `deploy` command
+
+Deprecation code: `CLI_DEPLOY_FUNCTION_OPTION'`
+
+Starting with v3.0.0, `--function` or `-f` option for `deploy` command will be removed. In order to deploy a single function, please use `deploy function` command instead.
+
+<a name="CHANGE_OF_DEFAULT_RUNTIME_TO_NODEJS14X"><div>&nbsp;</div></a>
+
+## Change of default runtime to `nodejs14.x`
+
+Deprecation code: `CHANGE_OF_DEFAULT_RUNTIME_TO_NODEJS14X`
+
+Starting with `v3.0.0`, the default runtime will change from `nodejs12.x` to `nodejs14.x`. In order to hide the deprecation message and ensure seamless upgrade, please set the runtime explicitly.
+
 <a name="AWS_API_GATEWAY_NON_APPLICABLE_SETTINGS"><div>&nbsp;</div></a>
 
 ## AWS API Gateway non-applicable settings configured
@@ -45,7 +88,9 @@ Starting with v3.0.0 any option extensions which does not have `type` defined wi
 
 Deprecation code: `NEW_PACKAGE_PATTERNS`
 
-Please use `package.patterns`. `package.include` and `package.exclude` will be removed with v3.0.0
+Support for `package.include` and `package.exclude` will be removed with v3.0.0. Instead please use `package.patterns` with which both _include_ and _exclude_ (prefixed with `!`) rules can be configured.
+
+Check [Packaging Patterns](/framework/docs/providers/aws/guide/packaging/#patterns) documentation for more info.
 
 <a name="UNSUPPORTED_CLI_OPTIONS"><div>&nbsp;</div></a>
 
@@ -53,14 +98,23 @@ Please use `package.patterns`. `package.include` and `package.exclude` will be r
 
 Deprecation code: `UNSUPPORTED_CLI_OPTIONS`
 
-So far Framework ignored any not recognized CLI options as passed with a CLI command. Still such handling
-is error prone, as due to e.g. accidental typos, important information may not be passed to the command and lead to unwanted results.
+Framework was upgraded with extensive CLI options validation and that required dropping support for _free form_ CLI options (keeping that in will make not possible to reliably detect accidental typos in option names).
+
+For _free form_ process configuration options it is adviced to rely on environment variables instead, as e.g.:
+
+```yaml
+provider:
+  stackName: ${env:STACK_NAME, 'T001'}
+```
+
+```bash
+STACK_NAME=test sls deploy
+```
+
+_Note that setup of environment variables is way more
+convenient since we've added support for [`.env`](/framework/docs/environment-variables#support-for-env-files) files._
 
 Starting with v3.0.0, Serverless will report unrecognized options with a thrown error.
-
-_Note: If you've used such options to aid dynamic resolution of service configuration (passing custom values to `${opt:..}` resolvers)._
-_We suggest to rely on environment variables instead. Setup of environment variables is also way more
-convenient since we've added support for [`.env`](/framework/docs/environment-variables#support-for-env-files) files._
 
 <a name="CLI_OPTIONS_BEFORE_COMMAND"><div>&nbsp;</div></a>
 
@@ -74,7 +128,7 @@ Ensure to always format CLI command as `sls [command..] [options...]`
 
 <a name="CONFIG_VALIDATION_MODE_DEFAULT"><div>&nbsp;</div></a>
 
-## `configValidationMode: error` will be new default`
+## `configValidationMode: error` will be new default
 
 Deprecation code: `CONFIG_VALIDATION_MODE_DEFAULT`
 
@@ -367,9 +421,9 @@ Configure `httpApi.payload` explicitly to ensure seamless migration.
 
 Deprecation code: `OUTDATED_NODEJS`
 
-Support for Node.js v6 and v8 will be dropped with v2.0.0 release
+Support for Node.js v8 was dropped with v2 release, while support for Node.js v10 will be dropped with v3 release
 
-Ensure to rely on at least Node.js v10 (It's recommended to use LTS version, as listed at https://nodejs.org/en/)
+Ensure to rely on at least Node.js v12 (It's recommended to use LTS version, as listed at https://nodejs.org/en/)
 
 <a name="AWS_ALB_ALLOW_UNAUTHENTICATED"><div>&nbsp;</div></a>
 

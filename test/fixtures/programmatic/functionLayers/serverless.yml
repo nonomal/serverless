@@ -1,6 +1,7 @@
 service: service
 provider:
   name: aws
+  runtime: nodejs12.x
   lambdaHashingVersion: 20201221
 
 layers:
@@ -17,8 +18,8 @@ layers:
     path: testLayer
 
 package:
-  exclude:
-    - extra_layers/**
+  patterns:
+    - '!extra_layers/**'
 
 functions:
   layerFunc:

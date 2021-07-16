@@ -106,6 +106,12 @@ describe('#naming()', () => {
     it('should return `/`', () => {
       expect(sdk.naming.getRolePath()).to.equal('/');
     });
+
+    it('uses custom role path', () => {
+      const customRolePath = '/custom-role-path/';
+      _.set(sdk.naming.provider, 'serverless.service.provider.iam.role.path', customRolePath);
+      expect(sdk.naming.getRolePath()).to.eql(customRolePath);
+    });
   });
 
   describe('#getRoleName()', () => {
@@ -699,9 +705,11 @@ describe('#naming()', () => {
         sdk.naming.getLambdaCognitoUserPoolPermissionLogicalId(
           'functionName',
           'Pool1',
-          'CustomMessage'
+          'PreSignUp_ExternalProvider'
         )
-      ).to.equal('FunctionNameLambdaPermissionCognitoUserPoolPool1TriggerSourceCustomMessage');
+      ).to.equal(
+        'FunctionNameLambdaPermissionCognitoUserPoolPool1TriggerSourcePreSignUpExternalProvider'
+      );
     });
 
     describe('#getLambdaAlbPermissionLogicalId()', () => {
@@ -786,7 +794,7 @@ describe('#naming()', () => {
       );
     });
 
-    it('should return a prefixed unique identifer of not longer than 32 characters if alb.targetGroupPrefix is set', () => {
+    it('should return a prefixed unique identifier of not longer than 32 characters if alb.targetGroupPrefix is set', () => {
       serverless.service.service = 'myService';
       serverless.service.provider.alb = {};
       serverless.service.provider.alb.targetGroupPrefix = 'myPrefix-';

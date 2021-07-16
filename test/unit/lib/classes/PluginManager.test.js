@@ -31,7 +31,6 @@ chai.use(require('sinon-chai'));
 const expect = chai.expect;
 
 describe('PluginManager', () => {
-  const env = resolveAwsEnv();
   let pluginManager;
   let serverless;
 
@@ -159,9 +158,11 @@ describe('PluginManager', () => {
           options: {
             resource: {
               usage: 'The resource you want to deploy (e.g. --resource db)',
+              type: 'string',
             },
             function: {
               usage: 'The function you want to deploy (e.g. --function create)',
+              type: 'string',
             },
           },
           commands: {
@@ -171,9 +172,11 @@ describe('PluginManager', () => {
               options: {
                 resource: {
                   usage: 'The resource you want to deploy (e.g. --resource db)',
+                  type: 'string',
                 },
                 function: {
                   usage: 'The function you want to deploy (e.g. --function create)',
+                  type: 'string',
                 },
               },
             },
@@ -209,9 +212,11 @@ describe('PluginManager', () => {
           options: {
             resource: {
               usage: 'The resource you want to deploy (e.g. --resource db)',
+              type: 'string',
             },
             function: {
               usage: 'The function you want to deploy (e.g. --function create)',
+              type: 'string',
             },
           },
           commands: {
@@ -222,9 +227,11 @@ describe('PluginManager', () => {
               options: {
                 resource: {
                   usage: 'The resource you want to deploy (e.g. --resource db)',
+                  type: 'string',
                 },
                 function: {
                   usage: 'The function you want to deploy (e.g. --function create)',
+                  type: 'string',
                 },
               },
             },
@@ -412,7 +419,7 @@ describe('PluginManager', () => {
     ({ restoreEnv } = overrideEnv({ whitelist: ['APPDATA', 'PATH'] }));
     serverless = new Serverless();
     serverless.cli = new CLI();
-    serverless.processedInput = { commands: [], options: {} };
+    serverless.processedInput = { commands: ['print'], options: {} };
     pluginManager = new PluginManager(serverless);
     serviceDir = pluginManager.serverless.serviceDir = 'foo';
   });
@@ -657,7 +664,7 @@ describe('PluginManager', () => {
       mockRequire('ServicePluginMock1', ServicePluginMock1);
       mockRequire('ServicePluginMock2', ServicePluginMock2);
       mockRequire('BrokenPluginMock', BrokenPluginMock);
-      mockRequire('@serverless/enterprise-plugin', EnterprisePluginMock);
+      mockRequire('@serverless/dashboard-plugin', EnterprisePluginMock);
     });
 
     it('should load only core plugins when no service plugins are given', () => {
@@ -742,7 +749,7 @@ describe('PluginManager', () => {
       mockRequire.stop('ServicePluginMock1');
       mockRequire.stop('ServicePluginMock2');
       mockRequire.stop('BrokenPluginMock');
-      mockRequire.stop('@serverless/enterprise-plugin');
+      mockRequire.stop('@serverless/dashboard-plugin');
     });
   });
 
@@ -1997,10 +2004,17 @@ describe('PluginManager', () => {
     this.timeout(1000 * 60 * 10);
 
     let serverlessInstance;
+    let env;
     const serverlessExec = require('../../../serverlessBinary');
 
+    before(() => {
+      env = resolveAwsEnv();
+      // Test may be run against deprecated Node.js versions
+      env.SLS_DEPRECATION_DISABLE = 'OUTDATED_NODEJS';
+    });
+
     beforeEach(() => {
-      serverlessInstance = new Serverless();
+      serverlessInstance = new Serverless({ commands: ['print'], options: {}, serviceDir: null });
       return serverlessInstance.init().then(() => {
         // Cannot rely on shebang in severless.js to invoke script using NodeJS on Windows.
         const tmpDir = getTmpDirPath();

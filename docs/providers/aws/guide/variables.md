@@ -42,14 +42,14 @@ You can define your own variable syntax (regex) if it conflicts with CloudFormat
 - [Environment variables](#referencing-environment-variables)
 - [CLI options](#referencing-cli-options)
 - [Other properties defined in `serverless.yml`](#reference-properties-in-serverlessyml)
-- [External YAML/JSON files](#reference-variables-in-other-files)
+- [External YAML/JSON files](#reference-properties-in-other-files)
 - [Variables from S3](#referencing-s3-objects)
 - [Variables from AWS SSM Parameter Store](#reference-variables-using-the-ssm-parameter-store)
 - [Variables from AWS Secrets Manager](#reference-variables-using-aws-secrets-manager)
 - [CloudFormation stack outputs](#reference-cloudformation-outputs)
 - [Properties exported from Javascript files (sync or async)](#reference-variables-in-javascript-files)
-- [Pseudo Parameters Reference](#pseudo-parameters-reference)
 - [Read String Variable Values as Boolean Values](#read-string-variable-values-as-boolean-values)
+- [Pseudo Parameters Reference](#aws-cloudformation-pseudo-parameters-and-intrinsic-functions)
 
 ## Casting string variables to boolean values
 
@@ -162,7 +162,7 @@ In the above example you're dynamically adding a prefix to the function names by
 
 ## Referencing CLI Options
 
-To reference CLI options that you passed, use the `${opt:some_option}` syntax in your `serverless.yml` configuration file. It is valid to use the empty string in place of `some_option`. This looks like "`${opt:}`" and the result of declaring this in your `serverless.yml` is to embed the complete `options` object (i.e. all the command line options from your `serverless` command).
+To reference CLI options that you passed, use the `${opt:<option>}` syntax in your `serverless.yml` configuration file. It is valid to use the empty string in place of `<option>`. This looks like "`${opt:}`" and the result of declaring this in your `serverless.yml` is to embed the complete `options` object (i.e. all the command line options from your `serverless` command).
 
 ```yml
 service: new-service
@@ -275,10 +275,13 @@ Buckets from all regions can be used without any additional specification due to
 
 ## Reference Variables using the SSM Parameter Store
 
+_Note: Ensure to add `variablesResolutionMode: 20210326` to your service configuration, to enable complete support for "ssm" variables resolution._
+
 You can reference SSM Parameters as the source of your variables with the `ssm:/path/to/param` syntax. For example:
 
 ```yml
 service: ${ssm:/path/to/service/id}-service
+variablesResolutionMode: 20210326
 provider:
   name: aws
 functions:
@@ -293,6 +296,7 @@ You can also reference SSM Parameters in another region with the `ssm(REGION):/p
 
 ```yml
 service: ${ssm(us-west-2):/path/to/service/id}-service
+variablesResolutionMode: 20210326
 provider:
   name: aws
 functions:
@@ -301,15 +305,42 @@ functions:
     handler: handler.hello
 ```
 
+## Referencing AWS-specific variables
+
+You can reference AWS-specific values as the source of your variables. Those values are exposed via the Serverless Variables system through the `{aws:}` variable prefix.
+
+The following variables are available:
+
+**accountId**
+
+Account ID of you AWS Account, based on the AWS Credentials that you have configured.
+
+```yml
+service: new-service
+provider:
+  name: aws
+
+functions:
+  func1:
+    name: function-1
+    handler: handler.func1
+    environment:
+      ACCOUNT_ID: ${aws:accountId}
+```
+
+**region**
+
+The region used by the Serverless CLI. The `${aws:region}` variable is a shortcut for `${opt:region, self:provider.region, "us-east-1"}`.
+
 ### Resolution of non plain string types
 
 New variable resolver, ensures that automatically other types as `SecureString` and `StringList` are resolved into expected forms.
 
-For that please ensure to add `variablesResolutionMode: 20210326` to your service configuration.
-
 #### Auto decrypting of `SecureString` type parameters.
 
 All `SecureString` type parameters are automatically decrypted, and automatically parsed if they export stringified JSON content (Note: you can turn off parsing by passing `raw` instruction into variable as: `${ssm(raw):/path/to/secureparam}`, if you need to also pass custom region, put it first as: `${ssm(eu-west-1, raw):/path/to/secureparam}`)
+
+## Reference Variables using AWS Secrets Manager
 
 Variables in [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/) can be referenced [using SSM](https://docs.aws.amazon.com/systems-manager/latest/userguide/integration-ps-secretsmanager.html), just use the `ssm:/aws/reference/secretsmanager/secret_ID_in_Secrets_Manager` syntax. For example:
 
@@ -376,9 +407,15 @@ custom:
   myArrayVar: ${ssm:/path/to/stringlistparam}
 ```
 
-## Reference Variables in Other Files
+## Reference Properties in Other Files
 
-You can reference variables in other YAML or JSON files. To reference variables in other YAML files use the `${file(./myFile.yml):someProperty}` syntax in your `serverless.yml` configuration file. To reference variables in other JSON files use the `${file(./myFile.json):someProperty}` syntax. It is important that the file you are referencing has the correct suffix, or file extension, for its file type (`.yml` for YAML or `.json` for JSON) in order for it to be interpreted correctly. Here's an example:
+You can reference properties in other YAML or JSON files. To reference properties in other YAML files use the `${file(./myFile.yml):someProperty}` syntax in your `serverless.yml` configuration file.
+
+Files need to be referenced by relative paths, which should not reach out beyond project directory (by default service directory). If you work with multi-service project, you can change project directory boundary with `projectDir` setting (e.g. set `projectDir: ../` if you're service is nested in top level _service-x_ directory)
+
+To reference properties in other JSON files use the `${file(./myFile.json):someProperty}` syntax. It is important that the file you are referencing has the correct suffix, or file extension, for its file type (`.yml` for YAML or `.json` for JSON) in order for it to be interpreted correctly.
+
+Here's an example:
 
 ```yml
 # myCustomFile.yml
@@ -472,26 +509,40 @@ functions:
 
 ### Exporting a function
 
-With a new variables resolver (_which will be the only used resolver in v3 of a Framework, and which can be turned on now by setting `variablesResolutionMode: 20210326` in service config_) functions receives an object, with two properties:
+#### With a new variables resolver
+
+_Note: works only with `variablesResolutionMode: 20210326` set in service configuration_
+
+With a new variables resolver (_which will be the only used resolver in v3 of a Framework_) functions receives an object, with following properties:
 
 - `options` - An object referencing resolved CLI params as passed to the command
+- `resolveVariable(variableString)` - Async function which resolves provided variable string. String should be passed without wrapping (`${` and `}`) braces. Example valid values:
+  - `file(./config.js):SOME_VALUE`
+  - `env:SOME_ENV_VAR, null` (end with `, null`, if missing value at the variable source should be resolved with `null`, and not with a thrown error)
 - `resolveConfigurationProperty([key1, key2, ...keyN])` - Async function which resolves specific service configuration property. It returns a fully resolved value of configuration property. If circular reference is detected resolution will be rejected.
 
-Example, of how to obtain a value of AWS region that will be used by Serverless Framework:
+Resolver function can be either _sync_ or _async_. Still both `resolveConfigurationProperty` and `resolveVariable` utils provided to it are _async_, so if there's an intention to rely on it naturally resolver function should be _async_.
+
+Example on how to obtain some Serverless Framework configuration values:
 
 ```js
 // config.js (when relying on new variables resolver)
-module.exports = async ({ options, resolveConfigurationProperty }) => {
-  let region = options.region;
-  if (!region) {
-    region = await resolveConfigurationProperty(['provider', 'region']);
-    if (!region) region = 'us-east-1'; // Framework default
-  }
+module.exports = async ({ options, resolveVariable }) => {
+  const stage = await resolveVariable('sls:stage');
+  const region = await resolveVariable('opt:region, self:provider.region, "us-east-1"');
   ...
+
+  // Resolver may return any JSON value (null, boolean, string, number, array or plain object)
+  return {
+    prop1: someValue // if we want to directly access this value, variable should be constructed as ${file(./config):prop1}
+    prop2: someOther value
+  }
 }
 ```
 
-In the old legacy resolver (which is deprecated, but stays as default in v2) function receives a reference to the Serverless object containing your configuration.
+#### With a legacy (deprecated) resolver
+
+In old legacy resolver (deprecated, but still default in v2) function receives a reference to the Serverless object containing your configuration.
 
 _**Notice:** Configuration is yet in unresolved state, so any properties configured with variables may still be presented with variables in it_
 

@@ -36,6 +36,11 @@ describe('lib/plugins/aws/package/compile/events/httpApi.test.js', () => {
               handler: 'index.handler',
               events: [{ httpApi: { method: '*', path: '/method-catch-all' } }],
             },
+            payload: {
+              handler: 'index.handler',
+              httpApi: { payload: '1.0' },
+              events: [{ httpApi: { method: 'get', path: '/payload' } }],
+            },
           },
         },
       }).then(({ awsNaming, cfTemplate }) => {
@@ -125,6 +130,11 @@ describe('lib/plugins/aws/package/compile/events/httpApi.test.js', () => {
       const apiResource = cfResources[naming.getHttpApiLogicalId()];
       expect(apiResource.Properties.DisableExecuteApiEndpoint).to.equal(undefined);
     });
+
+    it('should support payload format version per function', async () => {
+      const resource = cfResources[naming.getHttpApiIntegrationLogicalId('payload')];
+      expect(resource.Properties.PayloadFormatVersion).to.equal('1.0');
+    });
   });
 
   describe('Provider properties', () => {
@@ -206,6 +216,10 @@ describe('lib/plugins/aws/package/compile/events/httpApi.test.js', () => {
       const { Tags } = cfApi.Properties;
       expect(Tags).to.be.a('object');
       expect(Tags).to.deep.equal(expectedTags);
+
+      const { Tags: stageTags } = cfStage.Properties;
+      expect(stageTags).to.be.a('object');
+      expect(stageTags).to.deep.equal(expectedTags);
     });
 
     it('should set payload format version', () => {
@@ -458,9 +472,8 @@ describe('lib/plugins/aws/package/compile/events/httpApi.test.js', () => {
     });
 
     it('should create permission resource when authorizer references function from service', () => {
-      const authorizerPermissionLogicalId = naming.getLambdaAuthorizerHttpApiPermissionLogicalId(
-        'someAuthorizer'
-      );
+      const authorizerPermissionLogicalId =
+        naming.getLambdaAuthorizerHttpApiPermissionLogicalId('someAuthorizer');
       expect(cfResources[authorizerPermissionLogicalId]).to.deep.equal({
         Type: 'AWS::Lambda::Permission',
         Properties: {

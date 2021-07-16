@@ -2,6 +2,7 @@
 
 const AWS = require('aws-sdk');
 const fse = require('fs-extra');
+const fsp = require('fs').promises;
 const _ = require('lodash');
 const path = require('path');
 const chai = require('chai');
@@ -236,6 +237,7 @@ describe('AwsCompileFunctions', () => {
       const { cfTemplate } = await runServerless({
         fixture: 'function',
         configExt: {
+          disabledDeprecations: ['PROVIDER_IAM_SETTINGS'],
           provider: {
             role: 'role-a',
             iam: { role: 'role-b' },
@@ -450,17 +452,18 @@ describe('AwsCompileFunctions', () => {
       describe('when IamRoleLambdaExecution is used', () => {
         beforeEach(() => {
           // pretend that the IamRoleLambdaExecution is used
-          awsCompileFunctions.serverless.service.provider.compiledCloudFormationTemplate.Resources.IamRoleLambdaExecution = {
-            Properties: {
-              Policies: [
-                {
-                  PolicyDocument: {
-                    Statement: [],
+          awsCompileFunctions.serverless.service.provider.compiledCloudFormationTemplate.Resources.IamRoleLambdaExecution =
+            {
+              Properties: {
+                Policies: [
+                  {
+                    PolicyDocument: {
+                      Statement: [],
+                    },
                   },
-                },
-              ],
-            },
-          };
+                ],
+              },
+            };
         });
 
         it('should create necessary resources if a SNS arn is provided', () => {
@@ -804,17 +807,18 @@ describe('AwsCompileFunctions', () => {
       describe('when IamRoleLambdaExecution is used', () => {
         beforeEach(() => {
           // pretend that the IamRoleLambdaExecution is used
-          awsCompileFunctions.serverless.service.provider.compiledCloudFormationTemplate.Resources.IamRoleLambdaExecution = {
-            Properties: {
-              Policies: [
-                {
-                  PolicyDocument: {
-                    Statement: [],
+          awsCompileFunctions.serverless.service.provider.compiledCloudFormationTemplate.Resources.IamRoleLambdaExecution =
+            {
+              Properties: {
+                Policies: [
+                  {
+                    PolicyDocument: {
+                      Statement: [],
+                    },
                   },
-                },
-              ],
-            },
-          };
+                ],
+              },
+            };
         });
 
         it('should create necessary resources if a KMS key arn is provided', () => {
@@ -878,17 +882,18 @@ describe('AwsCompileFunctions', () => {
       describe('when IamRoleLambdaExecution is used', () => {
         beforeEach(() => {
           // pretend that the IamRoleLambdaExecution is used
-          awsCompileFunctions.serverless.service.provider.compiledCloudFormationTemplate.Resources.IamRoleLambdaExecution = {
-            Properties: {
-              Policies: [
-                {
-                  PolicyDocument: {
-                    Statement: [],
+          awsCompileFunctions.serverless.service.provider.compiledCloudFormationTemplate.Resources.IamRoleLambdaExecution =
+            {
+              Properties: {
+                Policies: [
+                  {
+                    PolicyDocument: {
+                      Statement: [],
+                    },
                   },
-                },
-              ],
-            },
-          };
+                ],
+              },
+            };
         });
 
         it('should create necessary resources if a tracing config is provided', () => {
@@ -1475,6 +1480,7 @@ describe('lib/plugins/aws/package/compile/functions/index.test.js', () => {
             name: 'service',
             awsKmsKeyArn: 'arn:aws:kms:region:accountid:pro/vider',
           },
+          disabledDeprecations: ['SERVICE_OBJECT_NOTATION', 'AWS_KMS_KEY_ARN'],
           provider: {
             vpc: {
               subnetIds: ['subnet-01010101'],
@@ -1520,8 +1526,7 @@ describe('lib/plugins/aws/package/compile/functions/index.test.js', () => {
               handler: 'index.handler',
               fileSystemConfig: {
                 localMountPath: '/mnt/path',
-                arn:
-                  'arn:aws:elasticfilesystem:us-east-1:111111111111:access-point/fsap-a1a1a1a1a1a1a1a1a',
+                arn: 'arn:aws:elasticfilesystem:us-east-1:111111111111:access-point/fsap-a1a1a1a1a1a1a1a1a',
               },
             },
           },
@@ -1737,6 +1742,32 @@ describe('lib/plugins/aws/package/compile/functions/index.test.js', () => {
       });
     });
 
+    it('should support `vpc` defined with `Fn::Split`', async () => {
+      const { awsNaming, cfTemplate, fixtureData } = await runServerless({
+        fixture: 'function',
+        command: 'package',
+        configExt: {
+          provider: {
+            vpc: {
+              subnetIds: {
+                'Fn::Split': [',', 'subnet-01010101,subnet-21212121'],
+              },
+              securityGroupIds: {
+                'Fn::Split': [',', 'sg-0a0a0a0a,sg-0b0b0b0b'],
+              },
+            },
+          },
+        },
+      });
+
+      const providerConfig = fixtureData.serviceConfig.provider;
+
+      const { VpcConfig } = cfTemplate.Resources[awsNaming.getLambdaLogicalId('foo')].Properties;
+
+      expect(VpcConfig.SecurityGroupIds).to.deep.equal(providerConfig.vpc.securityGroupIds);
+      expect(VpcConfig.SubnetIds).to.deep.equal(providerConfig.vpc.subnetIds);
+    });
+
     describe('when custom IAM role is used', () => {
       let customRoleServiceConfig;
       let fooFunctionRole;
@@ -1906,8 +1937,7 @@ describe('lib/plugins/aws/package/compile/functions/index.test.js', () => {
               },
               fileSystemConfig: {
                 localMountPath: '/mnt/path',
-                arn:
-                  'arn:aws:elasticfilesystem:us-east-1:111111111111:access-point/fsap-a1a1a1a1a1a1a1a1a',
+                arn: 'arn:aws:elasticfilesystem:us-east-1:111111111111:access-point/fsap-a1a1a1a1a1a1a1a1a',
               },
             },
             fnImage: {
@@ -2283,8 +2313,7 @@ describe('lib/plugins/aws/package/compile/functions/index.test.js', () => {
             foo: {
               fileSystemConfig: {
                 localMountPath: '/mnt/path',
-                arn:
-                  'arn:aws:elasticfilesystem:us-east-1:111111111111:access-point/fsap-a1a1a1a1a1a1a1a1a',
+                arn: 'arn:aws:elasticfilesystem:us-east-1:111111111111:access-point/fsap-a1a1a1a1a1a1a1a1a',
               },
             },
           },
@@ -2500,14 +2529,14 @@ describe('lib/plugins/aws/package/compile/functions/index.test.js', () => {
             sourceChangeLayer = path.join(serviceDir, 'extra_layers', 'testLayerSourceChange');
             backupLayer = path.join(serviceDir, 'extra_layers', 'testLayerBackup');
 
-            await fse.rename(originalLayer, backupLayer);
-            await fse.rename(sourceChangeLayer, originalLayer);
+            await fsp.rename(originalLayer, backupLayer);
+            await fsp.rename(sourceChangeLayer, originalLayer);
             getHashForFilePath.clear();
           });
 
           afterEach(async () => {
-            await fse.rename(originalLayer, sourceChangeLayer);
-            await fse.rename(backupLayer, originalLayer);
+            await fsp.rename(originalLayer, sourceChangeLayer);
+            await fsp.rename(backupLayer, originalLayer);
           });
 
           it('should create different lambda version id', async () => {
@@ -2562,7 +2591,7 @@ describe('lib/plugins/aws/package/compile/functions/index.test.js', () => {
       //    - Corresponding url is configured in CF template
       // Test with "deploy" command, and configure `lastLifecycleHookName` to 'aws:deploy:deploy:uploadArtifact'
       // It'll demand stubbing few other AWS calls for that follow this stub:
-      // https://github.com/serverless/enterprise-plugin/blob/cdd53df45dfad18d8bdd79969194a61cb8178671/lib/deployment/parse.test.js#L1585-L1627
+      // https://github.com/serverless/dashboard-plugin/blob/cdd53df45dfad18d8bdd79969194a61cb8178671/lib/deployment/parse.test.js#L1585-L1627
       // Confirm same artifact is used for all functions
     });
 

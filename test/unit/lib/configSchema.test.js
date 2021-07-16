@@ -3,7 +3,7 @@
 const runServerless = require('../../utils/run-serverless');
 const expect = require('chai').expect;
 
-describe('#configSchema', () => {
+describe('test/unit/lib/configSchema.test.js', () => {
   const cases = [
     {
       isValid: true,
@@ -15,7 +15,7 @@ describe('#configSchema', () => {
       errorMessage: "should have required property 'name'",
       description: 'service required properties',
       mutation: {
-        service: {},
+        provider: { name: null },
       },
     },
     {
@@ -28,40 +28,10 @@ describe('#configSchema', () => {
     },
     {
       isValid: false,
-      errorMessage: 'should match pattern "^[a-zA-Z][0-9a-zA-Z-]+$"',
-      description: 'service name in object typed service',
-      mutation: {
-        service: { name: '1-first-number-is-not-allowed' },
-      },
-    },
-    {
-      isValid: false,
-      errorMessage: 'should match pattern "^arn:aws[a-z-]*:kms',
-      description: 'service awsKmsKeyArn',
-      mutation: {
-        service: {
-          name: 'some-service',
-          awsKmsKeyArn: 'invalidArn',
-        },
-      },
-    },
-    {
-      isValid: true,
-      description: 'service awsKmsKeyArn',
-      mutation: {
-        service: {
-          name: 'some-service',
-          awsKmsKeyArn: 'arn:aws:kms:us-east-1:123456789012:key/some-hash',
-        },
-      },
-    },
-    {
-      isValid: false,
       errorMessage: 'unrecognized property',
       description: 'service unknown property',
       mutation: {
-        service: {
-          name: 'some-service',
+        provider: {
           unknownProp: 'this is not supported',
         },
       },
@@ -108,8 +78,7 @@ describe('#configSchema', () => {
           individually: true,
           path: undefined,
           artifact: 'path/to/my-artifact.zip',
-          exclude: ['.git/**', '.travis.yml'],
-          include: ['src/**', 'handler.js'],
+          patterns: ['!.git/**', '!.travis.yml', 'src/**', 'handler.js'],
           excludeDevDependencies: false,
         },
       },

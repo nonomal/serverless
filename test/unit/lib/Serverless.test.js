@@ -1,6 +1,11 @@
 'use strict';
 
-const expect = require('chai').expect;
+const chai = require('chai');
+
+chai.use(require('chai-as-promised'));
+
+const { expect } = chai;
+
 const Serverless = require('../../../lib/Serverless');
 const semverRegex = require('semver-regex');
 const path = require('path');
@@ -23,7 +28,7 @@ describe('Serverless', () => {
   let serverless;
 
   beforeEach(() => {
-    serverless = new Serverless();
+    serverless = new Serverless({ commands: ['print'], options: {}, serviceDir: null });
   });
 
   describe('#constructor()', () => {
@@ -237,30 +242,39 @@ describe('test/unit/lib/Serverless.test.js', () => {
           expect(serverless.isLocalStub).to.be.true;
         }));
 
-      let serverlessWithDisabledLocalInstallationFallback;
-      it('Should report deprecation notice when "enableLocalInstallationFallback" is set', () =>
-        runServerless({
+      it('Should report deprecation notice when "enableLocalInstallationFallback" is set', async () =>
+        expect(
+          runServerless({
+            fixture: 'locallyInstalledServerless',
+            configExt: { enableLocalInstallationFallback: false },
+            command: 'print',
+            modulesCacheStub: {},
+          })
+        ).to.eventually.be.rejected.and.have.property(
+          'code',
+          'REJECTED_DEPRECATION_DISABLE_LOCAL_INSTALLATION_FALLBACK_SETTING'
+        ));
+
+      it('Should not fallback to local when "enableLocalInstallationFallback" set to false', async () => {
+        const { serverless } = await runServerless({
           fixture: 'locallyInstalledServerless',
-          configExt: { enableLocalInstallationFallback: false },
+          configExt: {
+            disabledDeprecations: 'DISABLE_LOCAL_INSTALLATION_FALLBACK_SETTING',
+            enableLocalInstallationFallback: false,
+          },
           command: 'print',
           modulesCacheStub: {},
-        }).then(({ serverless }) => {
-          serverlessWithDisabledLocalInstallationFallback = serverless;
-          expect(Array.from(serverless.triggeredDeprecations)).to.deep.equal([
-            'DISABLE_LOCAL_INSTALLATION_FALLBACK_SETTING',
-          ]);
-          expect(serverless._isInvokedByGlobalInstallation).to.be.false;
-          expect(serverless.isLocallyInstalled).to.be.false;
-          expect(serverless.isLocalStub).to.not.exist;
-        }));
-
-      it('Should not fallback to local when "enableLocalInstallationFallback" set to false', () =>
-        expect(serverlessWithDisabledLocalInstallationFallback.invokedInstance).to.not.exist);
+        });
+        expect(serverless.invokedInstance).to.not.exist;
+      });
 
       it('Should fallback to local version when "enableLocalInstallationFallback" set to true', () =>
         runServerless({
           fixture: 'locallyInstalledServerless',
-          configExt: { enableLocalInstallationFallback: true },
+          configExt: {
+            disabledDeprecations: 'DISABLE_LOCAL_INSTALLATION_FALLBACK_SETTING',
+            enableLocalInstallationFallback: true,
+          },
           command: 'print',
           modulesCacheStub: {},
         }).then(({ serverless }) => {
@@ -314,13 +328,17 @@ describe('test/unit/lib/Serverless.test.js', () => {
             useDotenv: true,
             custom: {
               fromDefaultEnv: '${env:DEFAULT_ENV_VARIABLE}',
-              fromStageEnv: '${env:STAGE_ENV_VARIABLE}',
+              fromStageEnv: "${env:STAGE_ENV_VARIABLE, 'not-found'}",
+              fromDefaultExpandedEnv: '${env:DEFAULT_ENV_VARIABLE_EXPANDED}',
             },
           },
         })
       ).servicePath;
 
-      const defaultFileContent = 'DEFAULT_ENV_VARIABLE=valuefromdefault';
+      const defaultFileContent = `
+        DEFAULT_ENV_VARIABLE=valuefromdefault
+        DEFAULT_ENV_VARIABLE_EXPANDED=$DEFAULT_ENV_VARIABLE/expanded
+      `;
       await fs.promises.writeFile(path.join(serviceDir, '.env'), defaultFileContent);
       conditionallyLoadDotenv.clear();
     });
@@ -333,7 +351,10 @@ describe('test/unit/lib/Serverless.test.js', () => {
       });
 
       expect(result.serverless.service.custom.fromDefaultEnv).to.equal('valuefromdefault');
-      expect(result.serverless.service.custom.fromStageEnv).to.be.undefined;
+      expect(result.serverless.service.custom.fromDefaultExpandedEnv).to.equal(
+        'valuefromdefault/expanded'
+      );
+      expect(result.serverless.service.custom.fromStageEnv).to.equal('not-found');
     });
   });
 

@@ -100,6 +100,18 @@ describe('test/unit/scripts/serverless.test.js', () => {
     ).to.include('nestedInPrototype: bar-in-prototype');
   });
 
+  it('should support multi service project', async () => {
+    expect(
+      String(
+        (
+          await spawn('node', [serverlessPath, 'print'], {
+            cwd: path.resolve(programmaticFixturesPath, 'multiService/serviceA'),
+          })
+        ).stdoutBuffer
+      )
+    ).to.include('self: bar');
+  });
+
   it('should rejected unresolved "provider" section', async () => {
     try {
       await spawn('node', [serverlessPath, 'print'], {
@@ -183,6 +195,14 @@ describe('test/unit/scripts/serverless.test.js', () => {
     const output = String((await spawn('node', [serverlessPath, 'deploy', '--help'])).stdoutBuffer);
     expect(output).to.include('deploy');
     expect(output).to.include('stage');
+  });
+
+  it('should print interactive setup help to stdout', async () => {
+    const output = String(
+      (await spawn('node', [serverlessPath, '--help-interactive'])).stdoutBuffer
+    );
+    expect(output).to.include('Interactive CLI');
+    expect(output).to.not.include('General Commands');
   });
 
   it('should show help when running container command', async () => {

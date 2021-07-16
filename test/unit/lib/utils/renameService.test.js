@@ -23,7 +23,7 @@ describe('renameService', () => {
 
     serviceDir = tmpDir;
 
-    serverless = new Serverless();
+    serverless = new Serverless({ commands: ['print'], options: {}, serviceDir: null });
     return serverless.init();
   });
 
@@ -201,6 +201,8 @@ describe('renameService', () => {
   });
 
   it('should fail to set new service name in serverless.yml', () => {
-    expect(() => renameService('new-service-name', serviceDir)).to.throw(Error);
+    expect(() => renameService('new-service-name', serviceDir))
+      .to.throw()
+      .and.have.property('code', 'MISSING_SERVICE_FILE');
   });
 });

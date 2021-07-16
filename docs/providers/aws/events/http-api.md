@@ -392,6 +392,20 @@ provider:
     payload: '1.0'
 ```
 
+The payload version can also be specified at the function level with httpApi.payload property and it will take precedence over the payload version configured at the provider level. It can be configured as:
+
+```yaml
+functions:
+  hello:
+    handler: index.handler
+    httpApi:
+      payload: '1.0'
+    events:
+      - httpApi:
+          path: /hello
+          method: GET
+```
+
 ### Detailed Metrics
 
 With HTTP API we may configure detailed metrics that can be used setup monitoring and alerting in Cloudwatch.
@@ -406,7 +420,7 @@ provider:
 
 ### Tags
 
-When using HTTP API, it is possible to tag the corresponding API Gateway. By setting `provider.httpApi.useProviderTags` to `true`, all tags defined on `provider.tags` will be applied to API Gateway.
+When using HTTP API, it is possible to tag the corresponding API Gateway resources. By setting `provider.httpApi.useProviderTags` to `true`, all tags defined on `provider.tags` will be applied to API Gateway and API Gateway Stage.
 
 ```yaml
 provider:
@@ -416,6 +430,16 @@ provider:
     useProviderTags: true
 ```
 
-In the above example, the tag project: myProject will be applied to API Gateway.
+In the above example, the tag project: myProject will be applied to API Gateway and API Gateway Stage.
 
 _Note: If the API Gateway has any existing tags applied outside of Serverless Framework, they will be removed during deployment._
+
+### Disable Default Endpoint
+
+By default, clients can invoke your API with the default https://{api_id}.execute-api.{region}.amazonaws.com endpoint. To require that clients use a custom domain name to invoke your API, disable the default endpoint.
+
+```yml
+provider:
+  httpApi:
+    disableDefaultEndpoint: true
+```

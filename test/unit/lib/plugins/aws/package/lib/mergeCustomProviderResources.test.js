@@ -21,7 +21,8 @@ describe('mergeCustomProviderResources', () => {
       )
     );
 
-    awsPackage.serverless.service.provider.compiledCloudFormationTemplate = coreCloudFormationTemplate;
+    awsPackage.serverless.service.provider.compiledCloudFormationTemplate =
+      coreCloudFormationTemplate;
   });
 
   describe('#mergeCustomProviderResources()', () => {
@@ -166,48 +167,6 @@ describe('mergeCustomProviderResources', () => {
         awsPackage.serverless.service.provider.compiledCloudFormationTemplate.Outputs
           .ServerlessDeploymentBucketName
       ).to.deep.equal(coreCloudFormationTemplate.Outputs.ServerlessDeploymentBucketName);
-    });
-
-    it('should create non-existent resource / attributes for resources.extensions.*', () => {
-      awsPackage.serverless.service.provider.compiledCloudFormationTemplate.Resources = {};
-
-      awsPackage.serverless.service.resources = {
-        extensions: {
-          SampleResource: {
-            Properties: {
-              PropertyA: 'new',
-            },
-            DependsOn: ['new'],
-            Metadata: {
-              key: 'value',
-              anotherKey: {
-                key2: 'value2',
-              },
-            },
-          },
-        },
-      };
-
-      awsPackage.mergeCustomProviderResources();
-      expect(awsPackage.serverless.service.provider.compiledCloudFormationTemplate.extensions).to
-        .not.exist;
-
-      expect(
-        awsPackage.serverless.service.provider.compiledCloudFormationTemplate.Resources
-      ).to.deep.equal({
-        SampleResource: {
-          Properties: {
-            PropertyA: 'new',
-          },
-          DependsOn: ['new'],
-          Metadata: {
-            key: 'value',
-            anotherKey: {
-              key2: 'value2',
-            },
-          },
-        },
-      });
     });
 
     it('should overwrite for resources.extensions.*.{CreationPolicy,DeletionPolicy,UpdatePolicy,UpdateReplacePolicy}', () => {
